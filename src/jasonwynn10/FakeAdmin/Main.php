@@ -58,6 +58,14 @@ class Main extends PluginBase implements Listener {
 	public function onChat(PlayerChatEvent $ev) {
 		if($ev->isCancelled() or $ev->getPlayer()->getName() == $this->specter->getPlayer()->getName())
 			return;
+		$run = false;
+		foreach($ev->getRecipients() as $recipient) {
+			if($recipient->getName() === $this->translations["name"]) {
+				$run = true;
+			}
+		}
+		if(!$run)
+			return;
 		$message = $ev->getMessage();
 		$this->translations["sender"] = $ev->getPlayer()->getName();
 		/**
