@@ -1,7 +1,7 @@
 Admin properties:
   Name: "FakeAdmin"
-  Ip: "SPECTER"
-  Port: "19133"
+  Ip: "SPECTER" # this can be anything
+  Port: "19133" # this can be any real port number
   # If the server has any authentication systems
   authentication:
     plugin: ""

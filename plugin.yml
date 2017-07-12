@@ -15,3 +15,4 @@ softdepend:
  - SimpleAuthHelper
  - SimpleAuth
  - HereAuth
+ - LeetAuth
