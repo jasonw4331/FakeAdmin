@@ -1,0 +1,9 @@
+Admin properties:
+  Name: "FakeAdmin"
+  Ip: "SPECTER"
+  Port: "19133"
+  # If the server has any authentication systems
+  authentication:
+    plugin: ""
+    password: "password"
+  invisible-to-non-op: false

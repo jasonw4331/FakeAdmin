@@ -1,0 +1,17 @@
+name: FakeAdmin
+main: jasonwynn10\FakeAdmin\Main
+version: 0.1.0
+api:
+ - 3.0.0-ALPHA5
+ - 3.0.0-ALPHA6
+load: POSTWORLD
+depend:
+ - Specter
+softdepend:
+ - PiggyAuth
+ - MyAuth
+ - PurePerms
+ - AuthMePE
+ - SimpleAuthHelper
+ - SimpleAuth
+ - HereAuth
