@@ -6,4 +6,5 @@ Admin properties:
   authentication:
     plugin: ""
     password: "password"
-  invisible-to-non-op: false
+  invisible to non op: false
+  reply to mesages: false

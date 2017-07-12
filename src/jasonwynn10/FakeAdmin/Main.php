@@ -2,24 +2,78 @@
 namespace jasonwynn10\FakeAdmin;
 
 use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerChatEvent;
+use pocketmine\network\mcpe\protocol\TextPacket;
 use pocketmine\plugin\PluginBase;
+
+use specter\Specter;
 
 use spoondetector\SpoonDetector;
 
 class Main extends PluginBase implements Listener {
 	/** @var PluginBase|false $authPlugin */
 	private $authPlugin;
-	/** @var string $loginPassword */
-	private $loginPassword = "";
 	/** @var AdminEntity $specter */
 	private $specter;
+	/** @var Specter $specterPlugin */
+	private $specterPlugin;
+	/** @var string[] $translations */
+	private $translations = [];
 	public function onEnable() {
 		$this->saveDefaultConfig();
+		$this->saveResource("chat-scripts.json");
 		SpoonDetector::printSpoon($this,"spoon.txt");
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
 		$this->authPlugin = $this->getServer()->getPluginManager()->getPlugin($this->getConfig()->getNested("Admin properties.authentication.plugin","")) ?? false;
-		if($this->authPlugin !== false)
-			$this->loginPassword = $this->getConfig()->getNested("Admin properties.authentication.password","");
-		$this->specter = new AdminEntity($this->getConfig()->getNested("Admin properties.Name","FakeAdmin"), $this->getConfig()->getNested("Admin properties.Ip","SPECTER"), (int)$this->getConfig()->getNested("Admin properties.Port",19133));
+		$this->specterPlugin = $this->getServer()->getPluginManager()->getPlugin("Specter");
+		$this->translations["name"] = $this->getConfig()->getNested("Admin properties.Name","FakeAdmin");
+		$this->translations["pass"] = $this->getConfig()->getNested("Admin properties.authentication.password","");
+		$this->translations["sender"] = "CONSOLE";
+		$this->specter = new AdminEntity(
+			$this->getConfig()->getNested("Admin properties.Name","FakeAdmin"),
+			$this->getConfig()->getNested("Admin properties.Ip","SPECTER"),
+			(int)$this->getConfig()->getNested("Admin properties.Port",19133),
+			$this->getConfig()->getNested("Admin properties.authentication.password","")
+		);
+	}
+
+	/**
+	 * @param string $str
+	 *
+	 * @return mixed|string
+	 */
+	private function translate(string $str) {
+		$str = str_replace("{%name}", $this->translations["name"], $str);
+		$str = str_replace("{%login}", $this->translations["pass"], $str);
+		$str = str_replace("{%sender}", $this->translations["sender"], $str);
+		return $str;
+	}
+
+	/**
+	 * @priority MONITOR
+	 * @ignoreCancelled false
+	 *
+	 * @param PlayerChatEvent $ev
+	 */
+	public function onChat(PlayerChatEvent $ev) {
+		if($ev->isCancelled() or $ev->getPlayer()->getName() == $this->specter->getPlayer()->getName())
+			return;
+		$message = $ev->getMessage();
+		$this->translations["sender"] = $ev->getPlayer()->getName();
+		/**
+		 * @var string $key
+		 * @var string $return
+		 */
+		foreach(json_decode(file_get_contents($this->getDataFolder()."chat-scripts.json")) as $received => $return) {
+			if(similar_text(strtolower($message), strtolower($this->translate($received))) >= 70) {
+				if($this->specter->getPlayer() != null) {
+					$pk = new TextPacket();
+					$pk->type = TextPacket::TYPE_CHAT;
+					$pk->source = $this->specter->getPlayer()->getName();
+					$pk->message = $return;
+					$this->specterPlugin->getInterface()->queueReply($pk, $this->specter->getPlayer());
+				}
+			}
+		}
 	}
 }
