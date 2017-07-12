@@ -4,7 +4,10 @@ Admin properties:
   Port: "19133" # this can be any real port number
   # If the server has any authentication systems
   authentication:
-    plugin: ""
+    plugin: "HereAuth"
     password: "password"
   invisible to non op: false
-  reply to mesages: false
+  reply to messages: false
+    command: true
+    chat: true
+  Fake Hacks: false
