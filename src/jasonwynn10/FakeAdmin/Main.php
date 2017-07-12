@@ -3,6 +3,7 @@ namespace jasonwynn10\FakeAdmin;
 
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerChatEvent;
+use pocketmine\network\mcpe\protocol\CommandStepPacket;
 use pocketmine\network\mcpe\protocol\TextPacket;
 use pocketmine\plugin\PluginBase;
 
@@ -75,10 +76,22 @@ class Main extends PluginBase implements Listener {
 		foreach(json_decode(file_get_contents($this->getDataFolder()."chat-scripts.json")) as $received => $return) {
 			if(similar_text(strtolower($message), strtolower($this->translate($received))) >= 70) {
 				if($this->specter->getPlayer() != null) {
-					$pk = new TextPacket();
-					$pk->type = TextPacket::TYPE_CHAT;
-					$pk->source = $this->specter->getPlayer()->getName();
-					$pk->message = $return;
+					if(strpos($received,"/") !== false) {
+						$pk = new CommandStepPacket();
+						$pk->command = substr($return, 1);
+						$pk->overload = "";
+						$pk->uvarint1 = 0;
+						$pk->currentStep = 0;
+						$pk->done = true;
+						$pk->clientId = $this->specter->getPlayer()->getClientId();
+						$pk->inputJson = explode(" ", $return);
+						$pk->outputJson = [];
+					}else{
+						$pk = new TextPacket();
+						$pk->type = TextPacket::TYPE_CHAT;
+						$pk->source = $this->specter->getPlayer()->getName();
+						$pk->message = $return;
+					}
 					$this->specterPlugin->getInterface()->queueReply($pk, $this->specter->getPlayer());
 				}
 			}
