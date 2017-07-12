@@ -71,28 +71,54 @@ class Main extends PluginBase implements Listener {
 		$this->translations["sender"] = $ev->getPlayer()->getName();
 		/**
 		 * @var string $key
-		 * @var string $return
+		 * @var string|string[] $return
 		 */
 		foreach(json_decode(file_get_contents($this->getDataFolder()."chat-scripts.json")) as $received => $return) {
 			if(similar_text(strtolower($message), strtolower($this->translate($received))) >= 70) {
-				if($this->specter->getPlayer() != null) {
-					if(strpos($received,"/") !== false) {
-						$pk = new CommandStepPacket();
-						$pk->command = substr($return, 1);
-						$pk->overload = "";
-						$pk->uvarint1 = 0;
-						$pk->currentStep = 0;
-						$pk->done = true;
-						$pk->clientId = $this->specter->getPlayer()->getClientId();
-						$pk->inputJson = explode(" ", $return);
-						$pk->outputJson = [];
-					}else{
-						$pk = new TextPacket();
-						$pk->type = TextPacket::TYPE_CHAT;
-						$pk->source = $this->specter->getPlayer()->getName();
-						$pk->message = $return;
+				if(is_array($return)) {
+					/** @var string[] $return */
+					foreach($return as $ret) {
+						if($this->specter->getPlayer() != null) {
+							if(strpos($ret,"/") !== false) {
+								$pk = new CommandStepPacket();
+								$pk->command = substr($ret, 1);
+								$pk->overload = "";
+								$pk->uvarint1 = 0;
+								$pk->currentStep = 0;
+								$pk->done = true;
+								$pk->clientId = $this->specter->getPlayer()->getClientId();
+								$pk->inputJson = explode(" ", $ret);
+								$pk->outputJson = [];
+							}else{
+								$pk = new TextPacket();
+								$pk->type = TextPacket::TYPE_CHAT;
+								$pk->source = $this->specter->getPlayer()->getName();
+								$pk->message = $ret;
+							}
+							$this->specterPlugin->getInterface()->queueReply($pk, $this->specter->getPlayer());
+						}
 					}
-					$this->specterPlugin->getInterface()->queueReply($pk, $this->specter->getPlayer());
+				}else{
+					/** @var string $return */
+					if($this->specter->getPlayer() != null) {
+						if(strpos($received,"/") !== false) {
+							$pk = new CommandStepPacket();
+							$pk->command = substr($return, 1);
+							$pk->overload = "";
+							$pk->uvarint1 = 0;
+							$pk->currentStep = 0;
+							$pk->done = true;
+							$pk->clientId = $this->specter->getPlayer()->getClientId();
+							$pk->inputJson = explode(" ", $return);
+							$pk->outputJson = [];
+						}else{
+							$pk = new TextPacket();
+							$pk->type = TextPacket::TYPE_CHAT;
+							$pk->source = $this->specter->getPlayer()->getName();
+							$pk->message = $return;
+						}
+						$this->specterPlugin->getInterface()->queueReply($pk, $this->specter->getPlayer());
+					}
 				}
 			}
 		}
