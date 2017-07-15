@@ -243,7 +243,7 @@ class Main extends PluginBase implements Listener {
 		}
 	}
 
-	/** Using specter is quite a hassle and doesn't seem really necessary to me. Any ideas on it @jasonwynn10? */
+	/** Using specter is quite a hassle and does not seem really necessary to me. Any ideas on it @jasonwynn10? */
 
 	/**
 	 * @param Location $location

@@ -2,11 +2,15 @@
 namespace jasonwynn10\FakeAdmin\Entity;
 
 use jasonwynn10\FakeAdmin\Main;
+use pocketmine\block\Solid;
 use pocketmine\entity\Human;
+use pocketmine\event\entity\EntityDamageByEntityEvent;
+use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\level\Level;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\AddPlayerPacket;
+use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\Player;
 use pocketmine\plugin\PluginException;
 
@@ -15,6 +19,7 @@ class FakeAdminHuman extends Human {
 	const ACTION_DORMANT = 0;
 	const ACTION_OBSERVE_PLAYER = 1;
 	const ACTION_RAPID_SNEAK = 2;
+	const ACTION_ATTACK_TARGET = 3;
 
 	/*
 	 * TODO: Skins.
@@ -24,7 +29,7 @@ class FakeAdminHuman extends Human {
 	/** @var int */
 	private $action = self::ACTION_DORMANT;
 	/** @var null|Player */
-	private $observedPlayer = null;
+	private $targetPlayer = null;
 
 	/** @var float */
 	private $xOffset = 0.0;
@@ -36,17 +41,21 @@ class FakeAdminHuman extends Human {
 	private $flying = true;
 	/** @var int */
 	private $directionFindTick = 0;
+	/** @var int */
+	private $attackDelay = 6;
 
 	public function __construct(Level $level, CompoundTag $nbt) {
 		parent::__construct($level, $nbt);
 		$this->spawnToAll();
 		$this->putName();
 		$this->setDormant();
-		$this->setDataProperty(self::DATA_FLAGS, self::DATA_FLAG_NO_AI, true);
+		$this->setDataProperty(self::DATA_FLAG_NO_AI, self::DATA_TYPE_BYTE, 1);
+		$this->setMaxHealth(20);
+		$this->setHealth(20);
 	}
 
 	public function putName() {
-		$this->setNameTag($this->getPlugin()->getConfig()->getNested("Admin properties.Name","FakeAdmin"));
+		$this->setNameTag($this->getPlugin()->getConfig()->getNested("Admin properties.Name", "FakeAdmin"));
 		$this->setNameTagVisible();
 		$this->setNameTagAlwaysVisible();
 	}
@@ -70,6 +79,7 @@ class FakeAdminHuman extends Human {
 			$this->yOffset = lcg_value() * 3 * $i;
 		}
 		$this->zOffset = lcg_value() * 7 * $i;
+		$this->directionFindTick = mt_rand(0, 40);
 		return true;
 	}
 
@@ -104,9 +114,9 @@ class FakeAdminHuman extends Human {
 		if($this->closed || !$this->isAlive()) {
 			return false;
 		}
-		if($this->observedPlayer === null && !$this->isDormant()) {
+		if($this->targetPlayer === null && !$this->isDormant()) {
 			$this->setDormant();
-		} elseif(!$this->observedPlayer->isOnline() && !$this->isDormant()) {
+		} elseif(!$this->targetPlayer->isOnline() && !$this->isDormant()) {
 			$this->setDormant();
 		}
 		$this->directionFindTick++;
@@ -116,16 +126,19 @@ class FakeAdminHuman extends Human {
 
 			case self::ACTION_OBSERVE_PLAYER:
 				$this->generateNewDirection();
-				$x = $this->x + $this->xOffset;
-				$y = ($this->isFlying() ? $this->y + $this->yOffset : 0);
-				$z = $this->z + $this->zOffset;
-				if($x * $x + $y + $y + $z + $z < 4) {
+				$x = $this->xOffset;
+				$y = ($this->isFlying() ? $this->yOffset : 0);
+				$z = $this->zOffset;
+				if($x * $x + $y * $y + $z * $z < 4) {
 					$this->motionX = 0;
 					$this->motionY = 0;
 					$this->motionZ = 0;
 				} else {
 					$this->motionX = $x * $this->getSpeed();
-					$this->motionY = $y * $this->getSpeed();
+					$this->motionY = 0;
+					if($y !== $this->y) {
+						$this->motionY = $y * $this->getSpeed();
+					}
 					$this->motionZ = $z * $this->getSpeed();
 				}
 				if(!$this->isFlying()) {
@@ -138,29 +151,92 @@ class FakeAdminHuman extends Human {
 						$this->flying = false;
 					}
 				}
-				$player = $this->observedPlayer;
+				$player = $this->targetPlayer;
 				$this->yaw = rad2deg(atan2(-$player->x, $player->z));
 				$this->pitch = rad2deg(-atan2($player->getEyeHeight(), sqrt($player->x * $player->x + $player->z * $player->z)));
 
+				if($player->distanceSquared(new Vector3($x, $y, $z)) > 25) {
+					$this->directionFindTick = 120;
+				}
 				$this->move($this->motionX, $this->motionY, $this->motionZ);
+				$this->checkWalkingArea();
 				break;
 
 			case self::ACTION_RAPID_SNEAK:
-				if(!$this->observedPlayer->isOnline()) {
-					$this->setDormant();
-					break;
-				}
 				if(mt_rand(0, 5) === 0) {
 					$this->setSneaking(!$this->isSneaking());
 				}
-				$player = $this->observedPlayer;
+				$player = $this->targetPlayer;
 				$this->yaw = rad2deg(atan2(-$player->x, $player->z));
 				$this->pitch = rad2deg(-atan2($player->getEyeHeight(), sqrt($player->x * $player->x + $player->z * $player->z)));
+				break;
+
+			case self::ACTION_ATTACK_TARGET:
+				if($this->flying) {
+					$this->flying = false;
+				}
+				$player = $this->targetPlayer;
+				$x = $player->x - $this->x;
+				$z = $player->z - $this->z;
+				if($x * $x + $z * $z < 4) {
+					$this->motionX = 0;
+					$this->motionY = 0;
+					$this->motionZ = 0;
+				} else {
+					$this->motionX = $x * $this->getSpeed();
+					$this->motionZ = $z * $this->getSpeed();
+				}
+				if($this->isCollidedHorizontally && $this->isOnGround()) {
+					$this->jump();
+				}
+
+				$this->yaw = rad2deg(atan2(-$player->x, $player->z));
+				$this->pitch = rad2deg(-atan2($player->getEyeHeight(), sqrt($player->x * $player->x + $player->z * $player->z)));
+
+				$this->hit($player);
 				break;
 		}
 		$this->updateMovement();
 		parent::onUpdate($currentTick);
 		return $this->isAlive();
+}
+
+	/**
+	 * @return bool
+	 */
+    public function checkWalkingArea(): bool {
+		if($this->distance($block = $this->getTargetBlock(2)) <= 1.5) {
+			if($block instanceof Solid) {
+				if((int) $block->y === (int) $this->getEyeHeight()) {
+					$this->directionFindTick = 120;
+					return true;
+				}
+			}
+		}
+		return false;
+    }
+
+	/**
+	 * @param Player $player
+	 *
+	 * @return bool
+	 */
+    public function hit(Player $player): bool {
+	    if(!$this->distance($player) <= 2.5) { // TODO: Find actual reach length of a player.
+			return false;
+	    }
+    	if($this->attackDelay < 6) {
+    		$this->attackDelay++;
+    		return false;
+	    }
+    	$player->attack(7, new EntityDamageByEntityEvent($this, $player, EntityDamageEvent::CAUSE_ENTITY_ATTACK, 7));
+    	$pk = new AnimatePacket();
+    	$pk->action = 1;
+    	$pk->entityRuntimeId = $this->getId();
+    	foreach($this->getLevel()->getPlayers() as $p) {
+    		$p->dataPacket($pk);
+	    }
+	    return true;
     }
 
 	/**
@@ -204,7 +280,7 @@ class FakeAdminHuman extends Human {
 			return false;
 		}
 		$this->action = self::ACTION_DORMANT;
-		$this->observedPlayer = null;
+		$this->targetPlayer = null;
 		return true;
 	}
 
@@ -227,7 +303,7 @@ class FakeAdminHuman extends Human {
 		if($this->isObserving()) {
 			$return = true;
 		}
-		$this->observedPlayer = $player;
+		$this->targetPlayer = $player;
 		$this->action = self::ACTION_OBSERVE_PLAYER;
 		return $return;
 	}
@@ -238,7 +314,7 @@ class FakeAdminHuman extends Human {
 	 * @return bool
 	 */
 	public function isObserving(): bool {
-		return $this->observedPlayer !== null && $this->action === self::ACTION_OBSERVE_PLAYER;
+		return $this->targetPlayer !== null && $this->action === self::ACTION_OBSERVE_PLAYER;
 	}
 
 	/**
