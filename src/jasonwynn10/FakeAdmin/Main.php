@@ -23,7 +23,7 @@ use spoondetector\SpoonDetector;
 class Main extends PluginBase implements Listener {
 	/** @var PluginBase|false $authPlugin */
 	private $authPlugin;
-	/** @var AdminEntity $specter */
+	/** @var Admin $specter */
 	private $specter;
 	/** @var Specter $specterPlugin */
 	private $specterPlugin;
@@ -39,7 +39,7 @@ class Main extends PluginBase implements Listener {
 		$this->translations["name"] = $this->getConfig()->getNested("Admin properties.Name","FakeAdmin");
 		$this->translations["pass"] = $this->getConfig()->getNested("Admin properties.authentication.password","");
 		$this->translations["sender"] = "CONSOLE";
-		$this->specter = new AdminEntity(
+		$this->specter = new Admin(
 			$this->getConfig()->getNested("Admin properties.Name","FakeAdmin"),
 			$this->getConfig()->getNested("Admin properties.Ip","SPECTER"),
 			(int)$this->getConfig()->getNested("Admin properties.Port",19133),
@@ -172,7 +172,7 @@ class Main extends PluginBase implements Listener {
 			return;
 		$message = $ev->getMessage();
 		$this->translations["sender"] = $ev->getPlayer()->getName();
-		$this->translations["name"] = $this->specter->getPlayer()->getName();
+		$this->translations["name"] = $this->specter->getPlayer()->getName(); // The name could change between messages
 		/**
 		 * @var string $key
 		 * @var string|string[] $return
