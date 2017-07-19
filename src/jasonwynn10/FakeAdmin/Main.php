@@ -3,14 +3,22 @@ namespace jasonwynn10\FakeAdmin;
 
 use _64FF00\PurePerms\PurePerms;
 
+use jasonwynn10\FakeAdmin\Entity\FakeAdminHuman;
 use Leet\LeetAuth\LeetAuth;
 
+use pocketmine\entity\Entity;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerChatEvent;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerKickEvent;
 use pocketmine\event\player\PlayerLoginEvent;
 use pocketmine\event\player\PlayerPreLoginEvent;
+use pocketmine\level\Location;
+use pocketmine\level\Position;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\DoubleTag;
+use pocketmine\nbt\tag\FloatTag;
+use pocketmine\nbt\tag\ListTag;
 use pocketmine\network\mcpe\protocol\CommandStepPacket;
 use pocketmine\network\mcpe\protocol\TextPacket;
 use pocketmine\plugin\PluginBase;
@@ -21,6 +29,7 @@ use specter\Specter;
 use spoondetector\SpoonDetector;
 
 class Main extends PluginBase implements Listener {
+
 	/** @var PluginBase|false $authPlugin */
 	private $authPlugin;
 	/** @var Admin $specter */
@@ -29,10 +38,12 @@ class Main extends PluginBase implements Listener {
 	private $specterPlugin;
 	/** @var string[] $translations */
 	private $translations = [];
+
 	public function onEnable() {
 		$this->saveDefaultConfig();
 		$this->saveResource("chat-scripts.json");
 		SpoonDetector::printSpoon($this,"spoon.txt");
+		Entity::registerEntity("FakeAdmin", true);
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
 		$this->authPlugin = $this->getServer()->getPluginManager()->getPlugin($this->getConfig()->getNested("Admin properties.authentication.plugin","")) ?? false;
 		$this->specterPlugin = $this->getServer()->getPluginManager()->getPlugin("Specter");
@@ -230,5 +241,36 @@ class Main extends PluginBase implements Listener {
 				}
 			}
 		}
+	}
+
+	/** Using specter is quite a hassle and does not seem really necessary to me. Any ideas on it @jasonwynn10? */
+
+	/**
+	 * @param Location $location
+	 *
+	 * @return FakeAdminHuman
+	 */
+	public function createFakeAdmin(Location $location): FakeAdminHuman {
+		$nbt = new CompoundTag("", [
+			"Pos" => new ListTag("Pos", [
+				new DoubleTag("", $location->x),
+				new DoubleTag("", $location->y),
+				new DoubleTag("", $location->z)
+			]),
+			"Motion" => new ListTag("Motion", [
+				new DoubleTag("", 0),
+				new DoubleTag("", 0),
+				new DoubleTag("", 0)
+			]),
+			"Rotation" => new ListTag("Rotation", [
+				new FloatTag("", $location->yaw),
+				new FloatTag("", $location->pitch)
+			])
+		]);
+		$entity = Entity::createEntity("FakeAdmin", $location->getLevel(), $nbt);
+		if($entity instanceof FakeAdminHuman) {
+			return $entity;
+		}
+		return null;
 	}
 }
