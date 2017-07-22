@@ -6,5 +6,9 @@
   "§bPlease, login using /login <password>": "/login {%login}",
   "§cYou aren't registered yet!": "/register {%login}",
   "Please register using: /register <password>": "/register {%pass}",
-  "Please log in using: /login <password>": "/login <password>"
+  "Please log in using: /login <password>": "/login <password>",
+  "Admin come here": [
+    "yea sure",
+    "follow sender"
+  ]
 }
