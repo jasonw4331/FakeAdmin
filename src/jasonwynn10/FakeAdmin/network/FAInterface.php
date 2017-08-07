@@ -282,14 +282,9 @@ class FAInterface implements SourceInterface {
 					/** @var BatchPacket $packet */
 					$packet->decode();
 
-					$str = zlib_decode($packet->payload, 1024 * 1024 * 64); //Max 64MB
-
-					$stream = new BinaryStream($str, 0);
-
-					while(!$packet->feof()) {
-						$buf = $stream->getString();
+					foreach($packet->getPackets() as $buf) {
 						$pk = PacketPool::getPacket($buf);
-						//$this->plugin->getLogger()->info("PACK:" . get_class($pk));
+
 						if(!$pk->canBeBatched()) {
 							throw new \InvalidArgumentException("Received invalid " . get_class($pk) . " inside BatchPacket");
 						}
